@@ -30,6 +30,8 @@ SWIFTFLAGS  := \
 	-L ./libgolang \
 	-lgolang \
 	-Xlinker --strip-all \
+	-Xlinker --gc-sections \
+	-Xlinker --icf=all
 
 BIN         := bin/go_swift
 GOLIB       := libgolang/libgolang.a
