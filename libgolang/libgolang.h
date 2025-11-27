@@ -21,6 +21,32 @@ extern const char *_GoStringPtr(_GoString_ s);
 /* Start of preamble from import "C" comments.  */
 
 
+#line 3 "golang.go"
+
+#include <stdint.h>
+
+// Function pointer types
+typedef void (*c_void_func_t)(void*);
+typedef void* (*c_ptr_func_t)(void*);
+
+typedef uint64_t TaskHandle;
+typedef uint64_t ChannelHandle;
+
+typedef struct {
+    ChannelHandle statsChannel;
+    int intervalMs;
+} MonitorConfig;
+
+// Helper to invoke C function pointers from Go
+static inline void invoke_void_func(c_void_func_t fn, void* arg) {
+    fn(arg);
+}
+
+static inline void* invoke_ptr_func(c_ptr_func_t fn, void *arg) {
+    return fn(arg);
+}
+
+#line 1 "cgo-generated-wrapper"
 
 
 /* End of preamble from import "C" comments.  */
@@ -82,7 +108,38 @@ typedef struct { void *data; GoInt len; GoInt cap; } GoSlice;
 extern "C" {
 #endif
 
-extern int Add(int a, int b);
+
+// Launch a function that returns void* asynchronously
+//
+extern uint64_t TaskLaunch(void* fn, void* arg);
+
+// Launch a function that returns nothing (fire-and-forget with tracking)
+//
+extern uint64_t TaskLaunchVoid(void* fn, void* arg);
+
+// Non-blocking check if task is complete (0=done, -1=running, -2=invalid)
+//
+extern int TaskPoll(uint64_t handle, void** resultPtr);
+
+// Blocking wait for task completion
+//
+extern void TaskAwait(uint64_t handle, void** resultPtr);
+
+// Blocking wait with timeout (0=success, -1=timeout, -2=invalid)
+//
+extern int TaskAwaitTimeout(uint64_t handle, int64_t timeoutMs, void** resultPtr);
+
+// Cleanup task resources (optional - useful for long-running programs)
+//
+extern void TaskCleanup(uint64_t handle);
+extern uint64_t ChannelCreate(int bufferSize);
+extern int ChannelSend(uint64_t handle, void* value);
+extern void* ChannelRecv(uint64_t handle);
+extern int ChannelTryRecv(uint64_t handle, void** valuePtr);
+extern void ChannelClose(uint64_t handle);
+extern char* HttpRegisterRoute(char* path, char* response);
+extern uint64_t HttpGetRequestCount(void);
+extern char* HttpStartServer(char* addr);
 
 #ifdef __cplusplus
 }

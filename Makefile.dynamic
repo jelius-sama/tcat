@@ -1,19 +1,11 @@
 SWIFTC      := swiftc
-# Go toolchain compiled against musl
-GOC         := /home/jelius-sama/Opensource/musl-go/bin/go
+GOC         := go
 
-# Make sure that $SWIFT_STATIC_SDK is set correctly in your env.
-SDK_ROOT := $(SWIFT_STATIC_SDK)
-
-# Go static build (musl)
+# Go static build
 GOFLAGS     := build -buildmode=c-archive
 
-# Swift static build (musl)
 SWIFTFLAGS  := \
-	-target x86_64-swift-linux-musl \
-	-sdk "$(SDK_ROOT)" \
-	-resource-dir "$(SDK_ROOT)/usr/lib/swift_static" \
-	-static-stdlib \
+	-parse-as-library \
 	-I ./libgolang \
 	-L ./libgolang \
 	-lgolang
