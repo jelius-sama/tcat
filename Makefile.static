@@ -1,0 +1,40 @@
+SWIFTC      := swiftc
+# Go toolchain compiled against musl
+GOC         := musl-go
+
+# Make sure that $SWIFT_STATIC_SDK is set correctly in your env.
+SDK_ROOT := $(SWIFT_STATIC_SDK)
+
+# Go static build (musl)
+GOFLAGS     := build -buildmode=c-archive
+
+# Swift static build (musl)
+SWIFTFLAGS  := \
+	-target x86_64-swift-linux-musl \
+	-sdk "$(SDK_ROOT)" \
+	-resource-dir "$(SDK_ROOT)/usr/lib/swift_static" \
+	-static-stdlib \
+	-I ./libgolang \
+	-L ./libgolang \
+	-lgolang
+
+BIN         := bin/go_swift
+GOLIB       := libgolang/libgolang.a
+GOSRC       := libgolang/golang.go
+SWIFTSRC    := main.swift
+
+.PHONY: all clean
+
+all: $(BIN)
+
+$(GOLIB): $(GOSRC)
+	@cd libgolang && $(GOC) $(GOFLAGS) -o libgolang.a golang.go
+	@echo Successfully built \`$(GOLIB)\`.
+
+$(BIN): $(SWIFTSRC) $(GOLIB)
+	@mkdir -p bin
+	@$(SWIFTC) $(SWIFTFLAGS) -o $(BIN) $(SWIFTSRC)
+	@echo Successfully built \`$(BIN)\`.
+
+clean:
+	rm -f $(BIN) $(GOLIB) libgolang/libgolang.h

@@ -1,0 +1,6 @@
+module golang {
+    header "libgolang.h"
+    link "golang"
+    export *
+}
+
