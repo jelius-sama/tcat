@@ -1,4 +1,5 @@
 import Golang
+import CShit
 import Foundation
 
 @_cdecl("main")
@@ -19,5 +20,6 @@ func main(_: Int32, _: CStringPtr) -> Int32 {
     // NOTE: One liner but leaks memory
     print(String(cString: StringInterpolation("Hello".toCStr, "World".toCStr)))
 
-    return 0;
+    let ret = HandleCServer()
+    return ret;
 }

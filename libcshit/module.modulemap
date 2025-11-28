@@ -1,0 +1,5 @@
+module CShit {
+    header "libcshit.h"
+    link "cshit"
+    export *
+}

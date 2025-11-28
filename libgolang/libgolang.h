@@ -138,6 +138,38 @@ extern int Add(int x, int y);
 extern char* StringInterpolation(char* x, char* y);
 >>>>>>> d955cc3 (Strings example)
 
+// Launch a function that returns void* asynchronously
+//
+extern uint64_t TaskLaunch(void* fn, void* arg);
+
+// Launch a function that returns nothing (fire-and-forget with tracking)
+//
+extern uint64_t TaskLaunchVoid(void* fn, void* arg);
+
+// Non-blocking check if task is complete (0=done, -1=running, -2=invalid)
+//
+extern int TaskPoll(uint64_t handle, void** resultPtr);
+
+// Blocking wait for task completion
+//
+extern void TaskAwait(uint64_t handle, void** resultPtr);
+
+// Blocking wait with timeout (0=success, -1=timeout, -2=invalid)
+//
+extern int TaskAwaitTimeout(uint64_t handle, int64_t timeoutMs, void** resultPtr);
+
+// Cleanup task resources (optional - useful for long-running programs)
+//
+extern void TaskCleanup(uint64_t handle);
+extern uint64_t ChannelCreate(int bufferSize);
+extern int ChannelSend(uint64_t handle, void* value);
+extern void* ChannelRecv(uint64_t handle);
+extern int ChannelTryRecv(uint64_t handle, void** valuePtr);
+extern void ChannelClose(uint64_t handle);
+extern char* HttpRegisterRoute(char* path, char* response);
+extern uint64_t HttpGetRequestCount();
+extern char* HttpStartServer(char* addr);
+
 #ifdef __cplusplus
 }
 #endif

@@ -40,6 +40,8 @@ SWIFTFLAGS  := \
 	-static-stdlib \
 	-I ./libgolang \
 	-L ./libgolang \
+	-I ./libcshit \
+	-L ./libcshit \
 	-lgolang \
 	-Xlinker --strip-all \
 	-Xlinker --gc-sections \
@@ -48,6 +50,8 @@ SWIFTFLAGS  := \
 BIN         := bin/swift-ffi
 GOLIB       := libgolang/libgolang.a
 GOSRC       := libgolang/golang.go
+CLIB		:= libcshit/libcshit.a
+CSRC		:= libcshit/cshit.c
 SWIFTSRC := $(shell find Source -name '*.swift')
 
 .PHONY: all clean
@@ -58,7 +62,12 @@ $(GOLIB): $(GOSRC)
 	@cd libgolang && $(GOC) $(GOFLAGS) -o libgolang.a golang.go
 	@echo Successfully built \`$(GOLIB)\`.
 
-$(BIN): $(SWIFTSRC) $(GOLIB)
+$(CLIB): $(CSRC)
+	@cd libcshit && musl-gcc -c cshit.c
+	@cd libcshit && ar rcs libcshit.a cshit.o
+	@echo Successfully built \`libcshit.a\`.
+
+$(BIN): $(SWIFTSRC) $(GOLIB) $(CLIB)
 	@mkdir -p bin
 	@$(SWIFTC) $(SWIFTFLAGS) -o $(BIN) $(SWIFTSRC)
 	@echo Successfully built \`$(BIN)\`.
