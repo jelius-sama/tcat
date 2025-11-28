@@ -43,6 +43,7 @@ SWIFTFLAGS  := \
 	-I ./libcshit \
 	-L ./libcshit \
 	-lgolang \
+	-lcshit \
 	-Xlinker --strip-all \
 	-Xlinker --gc-sections \
 	-Xlinker --icf=all
