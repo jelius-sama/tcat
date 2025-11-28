@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdint.h>
-#include "../libgolang/libgolang.h"
 #include <signal.h>
 
 volatile sig_atomic_t running = 1;    // shared between main and signal handler

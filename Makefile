@@ -19,7 +19,7 @@ SWIFTC      := swiftc
 #		When compiled using musl-gcc to be used with musl tools like we are doing
 #		here, it segfaults during runtime when the `-buildmode` is `c-archive`.
 # Make sure that the path is correct, we `cd` into `libgolang` when we use this compiler.
-GOC         := ./bin/musl-go
+GOC         := ../bin/musl-go
 
 CC          := musl-gcc
 
@@ -52,7 +52,7 @@ SWIFTFLAGS  := \
 # Go static archive
 GOFLAGS     := build -buildmode=c-archive
 
-CFLAGS := -O3 -c
+CFLAGS := -I./libgolang -include libgolang.h -O3 -c
 
 # NOTE:
 # Suppressing this warning because it is emitted internally by swiftc/clang,
@@ -62,7 +62,9 @@ SUPPRESSED_WARN := "clang: warning: argument unused during compilation: '-pie' \
 BIN         := bin/swift-ffi
 
 GOLIB       := libgolang/libgolang.a
-GOSRC       := libgolang/golang.go
+GOHEADER  := libgolang/libgolang.h
+GOSRC       := $(shell find libgolang -name '*.go')
+GOENTRY     := libgolang/
 
 CLIB        := libcshit/libcshit.a
 CSRC        := libcshit/cshit.c
@@ -70,22 +72,37 @@ COBJ        := libcshit/cshit.o
 
 SWIFTSRC := $(shell find Source -name '*.swift')
 
+# path_strip_prefix(TEXT)  -> drop first component up to first '/'
+path_strip_prefix = $(shell printf '%s\n' "$(1)" | cut -d/ -f2-)
+
+# path_strip_suffix(TEXT)  -> drop last component after last '/'
+path_strip_suffix = $(shell printf '%s\n' "$(1)" | rev | cut -d/ -f2- | rev)
+
+# path_strip(MODE, TEXT)
+# MODE = prefix | suffix
+path_strip = $(if $(filter prefix,$(1)), \
+                 $(call path_strip_prefix,$(2)), \
+                 $(call path_strip_suffix,$(2)) \
+              )
+
 .PHONY: all clean
 
 all: $(BIN)
 
-$(GOLIB): $(GOSRC)
-	@$(GOC) $(GOFLAGS) -o $(GOLIB) $(GOSRC)
+$(GOLIB) $(GOHEADER): $(GOSRC)
+	@cd $(call path_strip,suffix,$(GOLIB)) && $(GOC) $(GOFLAGS) -o $(call path_strip,prefix,$(GOLIB)) $(GOENTRY)
 	@echo Successfully built \`$(GOLIB)\`.
 
-$(CLIB): $(CSRC)
-	@$(CC) $(CFLAGS) $(CSRC) && ar rcs $(CLIB) $(COBJ)
+$(CLIB): $(CSRC) $(GOHEADER)
+	@$(CC) $(CFLAGS) -o $(COBJ) $(CSRC) && ar rcs $(CLIB) $(COBJ)
+	@rm $(COBJ)
 	@echo Successfully built \`$(CLIB)\`.
 
-$(BIN): $(SWIFTSRC) $(GOLIB) $(CLIB)
+$(BIN): $(SWIFTSRC) $(GOLIB) $(CLIB) $(GOHEADER)
 	@mkdir -p bin
 	@$(SWIFTC) $(SWIFTFLAGS) -o $(BIN) $(SWIFTSRC) \
 		2> >(grep -v $(SUPPRESSED_WARN) >&2)
+	@rm $(GOLIB) && rm $(CLIB)
 	@echo Successfully built \`$(BIN)\`.
 
 clean:
