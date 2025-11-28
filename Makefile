@@ -19,7 +19,9 @@ SWIFTC      := swiftc
 #		When compiled using musl-gcc to be used with musl tools like we are doing
 #		here, it segfaults during runtime when the `-buildmode` is `c-archive`.
 # Make sure that the path is correct, we `cd` into `libgolang` when we use this compiler.
-GOC         := ../bin/musl-go
+GOC         := ./bin/musl-go
+
+CC          := musl-gcc
 
 # Make sure that $SWIFT_STATIC_SDK is set correctly in your env.
 # In most cases you swift static sdk path should look like:
@@ -27,10 +29,7 @@ GOC         := ../bin/musl-go
 # Note that the version may differ depending on what version you have installed.
 SDK_ROOT := $(SWIFT_STATIC_SDK)
 
-# Go static build (musl)
-GOFLAGS     := build -buildmode=c-archive
-
-# Swift static build (musl) 
+# Swift static build
 SWIFTFLAGS  := \
 	-target x86_64-swift-linux-musl \
 	-sdk "$(SDK_ROOT)" \
@@ -50,16 +49,25 @@ SWIFTFLAGS  := \
 	-Xlinker --gc-sections \
 	-Xlinker --icf=all
 
+# Go static archive
+GOFLAGS     := build -buildmode=c-archive
+
+CFLAGS := -O3 -c
+
 # NOTE:
 # Suppressing this warning because it is emitted internally by swiftc/clang,
 # not by our code, and has no effect on the build.
 SUPPRESSED_WARN := "clang: warning: argument unused during compilation: '-pie' \[-Wunused-command-line-argument\]"
 
 BIN         := bin/swift-ffi
+
 GOLIB       := libgolang/libgolang.a
 GOSRC       := libgolang/golang.go
-CLIB		:= libcshit/libcshit.a
-CSRC		:= libcshit/cshit.c
+
+CLIB        := libcshit/libcshit.a
+CSRC        := libcshit/cshit.c
+COBJ        := libcshit/cshit.o
+
 SWIFTSRC := $(shell find Source -name '*.swift')
 
 .PHONY: all clean
@@ -67,12 +75,12 @@ SWIFTSRC := $(shell find Source -name '*.swift')
 all: $(BIN)
 
 $(GOLIB): $(GOSRC)
-	@cd libgolang && $(GOC) $(GOFLAGS) -o libgolang.a golang.go
+	@$(GOC) $(GOFLAGS) -o $(GOLIB) $(GOSRC)
 	@echo Successfully built \`$(GOLIB)\`.
 
 $(CLIB): $(CSRC)
-	@cd libcshit && musl-gcc -O3 -c cshit.c && ar rcs libcshit.a cshit.o
-	@echo Successfully built \`libcshit/libcshit.a\`.
+	@$(CC) $(CFLAGS) $(CSRC) && ar rcs $(CLIB) $(COBJ)
+	@echo Successfully built \`$(CLIB)\`.
 
 $(BIN): $(SWIFTSRC) $(GOLIB) $(CLIB)
 	@mkdir -p bin
@@ -81,4 +89,4 @@ $(BIN): $(SWIFTSRC) $(GOLIB) $(CLIB)
 	@echo Successfully built \`$(BIN)\`.
 
 clean:
-	rm -f $(BIN) $(GOLIB) libgolang/libgolang.h
+	rm -f $(BIN) $(GOLIB) libgolang/libgolang.h $(CLIB) $(COBJ)
