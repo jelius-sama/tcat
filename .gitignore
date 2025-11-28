@@ -3,3 +3,4 @@ libgolang/libgolang.a
 libcshit/libcshit.a
 libcshit/cshit.o
 compile_commands.json
+.cache/
