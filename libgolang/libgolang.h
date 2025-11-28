@@ -100,6 +100,7 @@ typedef struct { void *data; GoInt len; GoInt cap; } GoSlice;
 extern "C" {
 #endif
 
+<<<<<<< HEAD
 
 // Launch a function that returns void* asynchronously
 //
@@ -132,6 +133,10 @@ extern void ChannelClose(uint64_t handle);
 extern char* HttpRegisterRoute(char* path, char* response);
 extern uint64_t HttpGetRequestCount();
 extern char* HttpStartServer(char* addr);
+=======
+extern int Add(int x, int y);
+extern char* StringInterpolation(char* x, char* y);
+>>>>>>> d955cc3 (Strings example)
 
 #ifdef __cplusplus
 }

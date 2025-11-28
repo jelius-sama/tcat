@@ -33,10 +33,10 @@ SWIFTFLAGS  := \
 	-Xlinker --gc-sections \
 	-Xlinker --icf=all
 
-BIN         := bin/go_swift
+BIN         := bin/swift-ffi
 GOLIB       := libgolang/libgolang.a
 GOSRC       := libgolang/golang.go
-SWIFTSRC    := main.swift
+SWIFTSRC := $(shell find Source -name '*.swift')
 
 .PHONY: all clean
 

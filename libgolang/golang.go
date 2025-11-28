@@ -28,6 +28,7 @@ import "C"
 
 import (
 	"fmt"
+<<<<<<< HEAD
 	"net/http"
 	"sync"
 	"sync/atomic"
@@ -282,6 +283,18 @@ func HttpStartServer(addr *C.char) *C.char {
 	}
 
 	return C.CString("Unreachable: Server stopped")
+=======
+)
+
+//export Add
+func Add(x, y C.int) C.int {
+	return x + y
+>>>>>>> d955cc3 (Strings example)
+}
+
+//export StringInterpolation
+func StringInterpolation(x, y *C.char) *C.char {
+	return C.CString(fmt.Sprintf("StringInterpolation(): %s, %s!", C.GoString(x), C.GoString(y)))
 }
 
 func main() {}
