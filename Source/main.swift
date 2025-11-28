@@ -2,7 +2,7 @@ import Golang
 import Foundation
 
 @_cdecl("main")
-func main(_: Int32, _: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) -> Int32 {
+func main(_: Int32, _: CStringPtr) -> Int32 {
     print("Hello, World!")
 
     let add = Add(34, 35)
@@ -10,7 +10,7 @@ func main(_: Int32, _: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) -> In
 
     // NOTE: Doesn't leak any memory
     let hello = "Hello".toCStr, world = "World".toCStr
-    let toPrint: UnsafeMutablePointer<CChar> = StringInterpolation(hello, world)
+    let toPrint: CString = StringInterpolation(hello, world)
 
     defer { free(hello); free(world); free(toPrint); }
 

@@ -1,3 +1,15 @@
+# NOTE:
+# You can read through this if you want to, but I'd recommend just writing
+# the Go code in the `libgolang` directory and the Swift code in the `Sources`
+# directory. They will be compiled automatically when you run this Makefile.
+#
+# If you need more libraries, follow the same process we used for `libgolang`.
+# The steps should be very similar whether the library language is Go or C.
+#
+# If you need a library or package written in Swift, you may have to research
+# that on your own since most Swift projects use SwiftPM, but we don't — we
+# just raw-dawg the `swiftc`.
+
 SWIFTC      := swiftc
 
 # Go toolchain compiled against musl with a specific patch applied
