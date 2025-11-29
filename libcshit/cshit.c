@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <signal.h>
+#include "da.c"
 
 volatile sig_atomic_t running = 1;    // shared between main and signal handler
 
@@ -31,6 +32,8 @@ static inline void* monitor_loop(void* context) {
 }
 
 int HandleCServer() {
+    dynamic_arrays();
+
     if (signal(SIGINT, handle_sigint) == SIG_ERR) {
         perror("signal");
         exit(1);
@@ -44,7 +47,7 @@ int HandleCServer() {
     // Register HTTP routes
     char* msg;
     msg = HttpRegisterRoute("/", "Hello, FFI World!");
-    printf("%s", msg);
+printf("%s", msg);
     free(msg);
 
     msg = HttpRegisterRoute("/kazu", "Hello, Kazuma!");

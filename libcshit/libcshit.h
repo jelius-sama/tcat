@@ -2,5 +2,6 @@
 #define C_SHIT_H
 
 int HandleCServer();
+void dynamic_arrays();
 
-#endif
+#endif // C_SHIT_H
