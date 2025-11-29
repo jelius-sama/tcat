@@ -7,59 +7,62 @@ import Musl
 import Foundation
 import Golang
 
-let TCP_OK: CInt = 0
-let TCP_ERR: CInt = 1
-let PORT: String = ":6969"
+func printHelp(_ program: String) {
+    let msg =
+"""
+usage:
+  \(program) [mode] [port]
 
-@_cdecl("ConnHandler")
-func ConnHandler(_ arg: Optional<CPtr>) {
-    let conn = UInt64(UInt(bitPattern: arg))
-    var buf = Array<UInt8>(repeating: 0, count: 1024)
+modes:
+  -h | --h | -help | --help | help      print this help
+  -s | --s | -server | --server         run server
+  -c | --c | -client | --client         run client
 
-    while true {
-        var n: Int32 = 0
-        let readOK = buf.withUnsafeMutableBytes { buffer in
-            TCPRead(conn, buffer.baseAddress, Int32(buffer.count), &n) == TCP_OK
-        }
+optional:
+  -p <port>  or  --p <port> or -port <port> or --port <port>
+examples:
+  \(program) -s -p 9000
+  \(program) -c -p 9000\n
+"""
+    fputs(msg, stdout)
+}
 
-        if !readOK || n <= 0 {
-            TCPConnClose(conn)
-            return
-        }
+func parseArgs(_ args: [String]) -> (mode: String?, port: String?) {
+    var mode: String? = nil
+    var port: String? = nil
 
-        var written: Int32 = 0
-        let writeOK = buf.withUnsafeMutableBytes { buffer in
-            TCPWrite(conn, buffer.baseAddress, n, &written) == TCP_OK
+    var i = 1
+    while i < args.count {
+        let a = args[i]
+
+        if a == "-h" || a == "--h" || a == "-help" || a == "--help" || a == "help" {
+            mode = "help"
+        } else if a == "-c" || a == "--c" || a == "-client" || a == "--client" {
+            mode = "client"
+        } else if a == "-s" || a == "--s" || a == "-server" || a == "--server" {
+            mode = "server"
+        } else if a == "-p" || a == "--p" || a == "-port" || a == "--port" {
+            if i + 1 < args.count {
+                port = args[i + 1]
+                i += 1
+            }
         }
-        if !writeOK {
-            TCPConnClose(conn)
-            return
-        }
+        i += 1
     }
+
+    return (mode, port)
 }
 
 @_cdecl("main")
-func main(_: Int32, _: CStringPtr) -> Int32 {
-    var listener: UInt64 = 0
-    guard TCPListen(PORT.toCStr, &listener) == TCP_OK else {
-        fputs("Failed to listen on \(PORT)\n", stderr)
-        return 1
-    }
+func main(_ argc: Int32, _ argv: CStringPtr) -> Int32 {
+    let args = CommandLine.arguments
+    let (mode, portOverride) = parseArgs(args)
+    let port = portOverride ?? "6969"
 
-    fputs("Server listening on \(PORT)\n", stdout)
-
-    let fn = unsafeBitCast(
-        ConnHandler as @convention(c) (Optional<CPtr>) -> Void,
-        to: CPtr.self
-    )
-
-    while true {
-        var conn: UInt64 = 0
-        if TCPAccept(listener, &conn) != TCP_OK {
-            continue
-        }
-
-        let arg = CPtr(bitPattern: UInt(conn))
-        _ = TaskLaunchVoid(fn, arg)
+    switch mode {
+    case "help", .none:   printHelp(args[0]); return 0
+    case "client": return runClient(port: port)
+    case "server": return runServer(port: port)
+    default:       printHelp(args[0]); return 1
     }
 }

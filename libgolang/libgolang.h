@@ -101,6 +101,7 @@ extern "C" {
 #endif
 
 extern int TCPListen(char* addr, uint64_t* out);
+extern int TCPConnect(char* addr, uint64_t* out);
 extern int TCPAccept(uint64_t listener, uint64_t* out);
 extern int TCPRead(uint64_t conn, void* buf, int bufLen, int* outRead);
 extern int TCPWrite(uint64_t conn, void* buf, int bufLen, int* outWritten);

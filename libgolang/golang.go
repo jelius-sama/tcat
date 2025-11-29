@@ -69,6 +69,21 @@ func TCPListen(addr *C.char, out *C.uint64_t) C.int {
 	return TCP_OK
 }
 
+//export TCPConnect
+func TCPConnect(addr *C.char, out *C.uint64_t) C.int {
+	goAddr := C.GoString(addr)
+	c, err := net.Dial("tcp", goAddr)
+	if err != nil {
+		return TCP_ERR
+	}
+	h := newHandle()
+	mu.Lock()
+	connTable[h] = c
+	mu.Unlock()
+	*out = h
+	return TCP_OK
+}
+
 //export TCPAccept
 func TCPAccept(listener C.uint64_t, out *C.uint64_t) C.int {
 	mu.Lock()
