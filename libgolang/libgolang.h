@@ -105,31 +105,18 @@ extern int TCPConnect(char* addr, uint64_t* out);
 extern int TCPAccept(uint64_t listener, uint64_t* out);
 extern int TCPRead(uint64_t conn, void* buf, int bufLen, int* outRead);
 extern int TCPWrite(uint64_t conn, void* buf, int bufLen, int* outWritten);
+
+// broadcast same bytes to all connections except 'except'
+// if except == 0, no exception
+//
+extern int TCPBroadcast(void* buf, int bufLen, uint64_t except);
 extern int TCPConnClose(uint64_t conn);
 extern int TCPListenerClose(uint64_t listener);
-
-// Launch a function that returns void* asynchronously
-//
 extern uint64_t TaskLaunch(void* fn, void* arg);
-
-// Launch a function that returns nothing (fire-and-forget with tracking)
-//
 extern uint64_t TaskLaunchVoid(void* fn, void* arg);
-
-// Non-blocking check if task is complete (0=done, -1=running, -2=invalid)
-//
 extern int TaskPoll(uint64_t handle, void** resultPtr);
-
-// Blocking wait for task completion
-//
 extern void TaskAwait(uint64_t handle, void** resultPtr);
-
-// Blocking wait with timeout (0=success, -1=timeout, -2=invalid)
-//
 extern int TaskAwaitTimeout(uint64_t handle, int64_t timeoutMs, void** resultPtr);
-
-// Cleanup task resources (optional - useful for long-running programs)
-//
 extern void TaskCleanup(uint64_t handle);
 extern uint64_t ChannelCreate(int bufferSize);
 extern int ChannelSend(uint64_t handle, void* value);

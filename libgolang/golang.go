@@ -140,6 +140,32 @@ func TCPWrite(conn C.uint64_t, buf unsafe.Pointer, bufLen C.int, outWritten *C.i
 	return TCP_OK
 }
 
+// broadcast same bytes to all connections except 'except'
+// if except == 0, no exception
+//
+//export TCPBroadcast
+func TCPBroadcast(buf unsafe.Pointer, bufLen C.int, except C.uint64_t) C.int {
+	slice := (*[1 << 30]byte)(buf)[:bufLen:bufLen]
+
+	mu.Lock()
+	conns := make([]net.Conn, 0, len(connTable))
+	for h, c := range connTable {
+		if c == nil {
+			continue
+		}
+		if except != 0 && h == except {
+			continue
+		}
+		conns = append(conns, c)
+	}
+	mu.Unlock()
+
+	for _, c := range conns {
+		_, _ = c.Write(slice) // ignore per-conn errors for now
+	}
+	return TCP_OK
+}
+
 //export TCPConnClose
 func TCPConnClose(conn C.uint64_t) C.int {
 	mu.Lock()
@@ -210,8 +236,6 @@ func cleanupTask(handle TaskHandle) {
 	taskRegistry.Delete(handle)
 }
 
-// Launch a function that returns void* asynchronously
-//
 //export TaskLaunch
 func TaskLaunch(fn unsafe.Pointer, arg unsafe.Pointer) C.uint64_t {
 	handle, _ := allocateTask(true)
@@ -224,8 +248,6 @@ func TaskLaunch(fn unsafe.Pointer, arg unsafe.Pointer) C.uint64_t {
 	return C.uint64_t(handle)
 }
 
-// Launch a function that returns nothing (fire-and-forget with tracking)
-//
 //export TaskLaunchVoid
 func TaskLaunchVoid(fn unsafe.Pointer, arg unsafe.Pointer) C.uint64_t {
 	handle, _ := allocateTask(false)
@@ -238,13 +260,11 @@ func TaskLaunchVoid(fn unsafe.Pointer, arg unsafe.Pointer) C.uint64_t {
 	return C.uint64_t(handle)
 }
 
-// Non-blocking check if task is complete (0=done, -1=running, -2=invalid)
-//
 //export TaskPoll
 func TaskPoll(handle C.uint64_t, resultPtr *unsafe.Pointer) C.int {
 	task := getTask(TaskHandle(handle))
 	if task == nil {
-		return -2 // Invalid or already cleaned up
+		return -2
 	}
 
 	select {
@@ -254,17 +274,15 @@ func TaskPoll(handle C.uint64_t, resultPtr *unsafe.Pointer) C.int {
 		}
 		return 0
 	default:
-		return -1 // Still running
+		return -1
 	}
 }
 
-// Blocking wait for task completion
-//
 //export TaskAwait
 func TaskAwait(handle C.uint64_t, resultPtr *unsafe.Pointer) {
 	task := getTask(TaskHandle(handle))
 	if task == nil {
-		return // Already done or invalid
+		return
 	}
 
 	<-task.completionSignal
@@ -274,8 +292,6 @@ func TaskAwait(handle C.uint64_t, resultPtr *unsafe.Pointer) {
 	}
 }
 
-// Blocking wait with timeout (0=success, -1=timeout, -2=invalid)
-//
 //export TaskAwaitTimeout
 func TaskAwaitTimeout(handle C.uint64_t, timeoutMs C.int64_t, resultPtr *unsafe.Pointer) C.int {
 	task := getTask(TaskHandle(handle))
@@ -294,8 +310,6 @@ func TaskAwaitTimeout(handle C.uint64_t, timeoutMs C.int64_t, resultPtr *unsafe.
 	}
 }
 
-// Cleanup task resources (optional - useful for long-running programs)
-//
 //export TaskCleanup
 func TaskCleanup(handle C.uint64_t) {
 	cleanupTask(TaskHandle(handle))
@@ -323,7 +337,7 @@ func ChannelSend(handle C.uint64_t, value unsafe.Pointer) C.int {
 		ch <- value
 		return 0
 	}
-	return -1 // Invalid channel
+	return -1
 }
 
 //export ChannelRecv
@@ -332,7 +346,7 @@ func ChannelRecv(handle C.uint64_t) unsafe.Pointer {
 		ch := val.(chan unsafe.Pointer)
 		value, ok := <-ch
 		if !ok {
-			return nil // Channel closed
+			return nil
 		}
 		return value
 	}
@@ -346,17 +360,17 @@ func ChannelTryRecv(handle C.uint64_t, valuePtr *unsafe.Pointer) C.int {
 		select {
 		case value, ok := <-ch:
 			if !ok {
-				return -2 // Channel closed
+				return -2
 			}
 			if valuePtr != nil {
 				*valuePtr = value
 			}
 			return 0
 		default:
-			return -1 // Would block
+			return -1
 		}
 	}
-	return -3 // Invalid channel
+	return -3
 }
 
 //export ChannelClose

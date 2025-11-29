@@ -4,24 +4,8 @@ import Glibc
 import Musl
 #endif
 
+import Foundation
 import Golang
-
-// ----------------------------------------------------------
-// global client registry (conn -> username)
-// ----------------------------------------------------------
-
-var clients = [UInt64: String]()
-var clientsLock = pthread_mutex_t()
-
-@inline(__always)
-func lockClients() {
-    pthread_mutex_lock(&clientsLock)
-}
-
-@inline(__always)
-func unlockClients() {
-    pthread_mutex_unlock(&clientsLock)
-}
 
 func sendToConn(_ conn: UInt64, _ text: String) {
     let bytes = Array(text.utf8)
@@ -33,42 +17,32 @@ func sendToConn(_ conn: UInt64, _ text: String) {
     }
 }
 
-func broadcast(_ text: String) {
-    lockClients()
-    let conns = Array(clients.keys)
-    unlockClients()
+func broadcast(_ text: String, except: UInt64? = nil) {
+    let bytes = Array(text.utf8)
+    let ex = except ?? 0
 
-    for c in conns {
-        sendToConn(c, text)
+    bytes.withUnsafeBytes { b in
+        let ptr = UnsafeMutableRawPointer(mutating: b.baseAddress)
+        _ = TCPBroadcast(ptr, Int32(bytes.count), ex)
     }
-}
-
-func broadcastExcept(_ text: String, except: UInt64) {
-    lockClients()
-    let conns = Array(clients.keys)
-    unlockClients()
-
-    for c in conns where c != except {
-        sendToConn(c, text)
-    }
-}
-
-func usernameForConn(_ conn: UInt64) -> String? {
-    lockClients()
-    let name = clients[conn]
-    unlockClients()
-    return name
 }
 
 // ----------------------------------------------------------
-// per-connection handler (runs in Go task)
+// per-connection context:
+//
+// [0..7]   : UInt64 conn handle
+// [8.....] : username as NUL-terminated UTF-8
 // ----------------------------------------------------------
 @_cdecl("ConnHandler")
 func ConnHandler(_ arg: Optional<CPtr>) {
-    let conn = UInt64(UInt(bitPattern: arg))
-    var buf = Array<UInt8>(repeating: 0, count: 1024)
+    guard let raw = arg else { return }
+    let ctx = UnsafeMutableRawPointer(raw)
 
-    let username = usernameForConn(conn) ?? "unknown"
+    let conn = ctx.load(as: UInt64.self)
+    let namePtr = ctx.advanced(by: 8).assumingMemoryBound(to: CChar.self)
+    let username = String(cString: namePtr)
+
+    var buf = Array<UInt8>(repeating: 0, count: 1024)
 
     while true {
         var n: Int32 = 0
@@ -76,35 +50,23 @@ func ConnHandler(_ arg: Optional<CPtr>) {
             TCPRead(conn, b.baseAddress, Int32(b.count), &n) == TCP_OK
         }
         if !readOK || n <= 0 {
-            // remove client from registry
-            lockClients()
-            let name = clients[conn]
-            clients[conn] = nil
-            unlockClients()
-
             TCPConnClose(conn)
 
-            if let name = name {
-                let msg = "\(name) has left the chat"
-                broadcast(msg)
-                fputs("[leave] \(msg)\n", stdout)
-            }
+            let msg = "\(username) has left the chat"
+            broadcast(msg, except: conn)
+            fputs("[leave] \(msg)\n", stdout)
+
+            free(ctx)
             return
         }
 
         let text = String(decoding: buf[0..<Int(n)], as: UTF8.self)
         let msg = "\(username): \(text)"
-        broadcastExcept(msg, except: conn)
+        broadcast(msg, except: conn)
     }
 }
 
-// ----------------------------------------------------------
-// server bootstrap
-// ----------------------------------------------------------
 func runServer(port: String) -> Int32 {
-    pthread_mutex_init(&clientsLock, nil)
-    srandom(UInt32(time(nil)))
-
     var listener: UInt64 = 0
     guard TCPListen((":" + port).toCStr, &listener) == TCP_OK else {
         fputs("Failed to listen on :\(port)\n", stderr)
@@ -125,24 +87,32 @@ func runServer(port: String) -> Int32 {
         }
 
         // generate simple random username
-        let id = UInt32.random(in: 0..<100000)
+        let id = UInt32.random(in: 0..<100_000)
         let username = "user\(id)"
-
-        // register client
-        lockClients()
-        clients[conn] = username
-        unlockClients()
 
         // handshake: tell this client its username
         sendToConn(conn, "USER " + username)
 
         // announce join to everyone except the joining client
         let joinMsg = "\(username) has joined the chat"
-        broadcastExcept(joinMsg, except: conn)
-
+        broadcast(joinMsg, except: conn)
         fputs("[join] \(joinMsg)\n", stdout)
 
-        let arg = CPtr(bitPattern: UInt(conn))
+        // build per-connection context blob
+        let nameBytes = Array(username.utf8)
+        let total = 8 + nameBytes.count + 1
+
+        let ctx = UnsafeMutableRawPointer(malloc(total))!       // force unwrap once
+
+        ctx.storeBytes(of: conn, as: UInt64.self)
+
+        let namePtr = ctx.advanced(by: 8).assumingMemoryBound(to: UInt8.self)
+        _ = nameBytes.withUnsafeBytes { src in
+            memcpy(namePtr, src.baseAddress!, nameBytes.count)
+        }
+        namePtr[nameBytes.count] = 0
+
+        let arg = CPtr(ctx)
         _ = TaskLaunchVoid(fn, arg)
     }
 }

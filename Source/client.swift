@@ -4,6 +4,7 @@ import Glibc
 import Musl
 #endif
 
+import Foundation
 import Golang
 
 // read loop for the client — runs in a Go task
@@ -24,7 +25,14 @@ func ClientReadLoop(_ arg: Optional<CPtr>) {
         }
 
         let msg = String(decoding: buf[0..<Int(n)], as: UTF8.self)
-        fputs(msg + "\n", stdout)
+
+        if msg.hasPrefix("USER ") {
+            let start = msg.index(msg.startIndex, offsetBy: 5)
+            let name = String(msg[start...])
+            fputs("\(name): ", stdout)
+        } else {
+            fputs(msg + "\n", stdout)
+        }
         fflush(stdout)
     }
 }
