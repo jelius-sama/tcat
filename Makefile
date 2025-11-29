@@ -21,8 +21,6 @@ SWIFTC      := swiftc
 # Make sure that the path is correct, we `cd` into `libgolang` when we use this compiler.
 GOC         := ../bin/musl-go
 
-CC          := musl-gcc
-
 # Make sure that $SWIFT_STATIC_SDK is set correctly in your env.
 # In most cases you swift static sdk path should look like:
 # ~/.swiftpm/swift-sdks/swift-6.0.3-RELEASE_static-linux-0.0.1.artifactbundle/swift-6.0.3-RELEASE_static-linux-0.0.1/swift-linux-musl/musl-1.2.5.sdk/x86_64
@@ -41,10 +39,7 @@ SWIFTFLAGS  := \
 	-static-stdlib \
 	-I ./libgolang \
 	-L ./libgolang \
-	-I ./libcshit \
-	-L ./libcshit \
 	-lgolang \
-	-lcshit \
 	-Xlinker --strip-all \
 	-Xlinker --gc-sections \
 	-Xlinker --icf=all
@@ -52,23 +47,18 @@ SWIFTFLAGS  := \
 # Go static archive
 GOFLAGS     := build -buildmode=c-archive
 
-CFLAGS := -I./libgolang -include libgolang.h -O3 -c
 
 # NOTE:
 # Suppressing this warning because it is emitted internally by swiftc/clang,
 # not by our code, and has no effect on the build.
 SUPPRESSED_WARN := "clang: warning: argument unused during compilation: '-pie' \[-Wunused-command-line-argument\]"
 
-BIN         := bin/swift-ffi
+BIN         := bin/tcat
 
 GOLIB       := libgolang/libgolang.a
 GOHEADER  := libgolang/libgolang.h
 GOSRC       := $(shell find libgolang -name '*.go')
 GOENTRY     := libgolang/
-
-CLIB        := libcshit/libcshit.a
-CSRC        := libcshit/cshit.c
-COBJ        := libcshit/cshit.o
 
 SWIFTSRC := $(shell find Source -name '*.swift')
 
@@ -89,21 +79,15 @@ path_strip = $(if $(filter prefix,$(1)), \
 
 all: $(BIN)
 
-$(GOLIB) $(GOHEADER): $(GOSRC)
+$(GOLIB): $(GOSRC)
 	@cd $(call path_strip,suffix,$(GOLIB)) && $(GOC) $(GOFLAGS) -o $(call path_strip,prefix,$(GOLIB)) $(GOENTRY)
 	@echo Successfully built \`$(GOLIB)\`.
 
-$(CLIB): $(CSRC) $(GOHEADER)
-	@$(CC) $(CFLAGS) -o $(COBJ) $(CSRC) && ar rcs $(CLIB) $(COBJ)
-	@rm $(COBJ)
-	@echo Successfully built \`$(CLIB)\`.
-
-$(BIN): $(SWIFTSRC) $(GOLIB) $(CLIB) $(GOHEADER)
+$(BIN): $(SWIFTSRC) $(GOLIB)
 	@mkdir -p bin
 	@$(SWIFTC) $(SWIFTFLAGS) -o $(BIN) $(SWIFTSRC) \
 		2> >(grep -v $(SUPPRESSED_WARN) >&2)
-	@rm $(GOLIB) && rm $(CLIB)
 	@echo Successfully built \`$(BIN)\`.
 
 clean:
-	rm -f $(BIN) $(GOLIB) libgolang/libgolang.h $(CLIB) $(COBJ)
+	rm -f $(BIN) $(GOLIB) libgolang/libgolang.h

@@ -1,42 +1,65 @@
+#if canImport(Glibc)
+import Glibc
+#elseif canImport(Musl)
+import Musl
+#endif
 import Golang
-import CShit
 import Foundation
+
+let TCP_OK: CInt = 0
+let TCP_ERR: CInt = 1
 
 @_cdecl("main")
 func main(_: Int32, _: CStringPtr) -> Int32 {
-    print("Hello, World!")
+    // ---- Listen ----
+    var listener: UInt64 = 0
+    let addr = ":9000".cString(using: .utf8)!
+    let result = TCPListen(addr, &listener)
+    if result != TCP_OK {
+        fputs("Failed to listen on :9000\n", stderr)
+        return 1
+    }
+    fputs("Server listening on :9000\n", stdout)
 
-    let add = Add(34, 35)
-    print("Golang Add(): \(add)")
+    while true {
+        // ---- Accept ----
+        var conn: UInt64 = 0
+        if TCPAccept(listener, &conn) != TCP_OK {
+            continue
+        }
 
-    // NOTE: Doesn't leak any memory
-    let hello = "Hello".toCStr, world = "World".toCStr
-    let toPrint: CString = StringInterpolation(hello, world)
+        // ---- Spawn handler ----
+        Thread.detachNewThread { [conn] in
+            handleConn(conn)
+        }
+    }
 
-    defer { free(hello); free(world); free(toPrint); }
+    return 0;
+}
 
-    print(String(cString: toPrint))
+func handleConn(_ conn: UInt64) {
+    var buf = [UInt8](repeating: 0, count: 1024)
 
-    // NOTE: One liner but leaks memory
-    print(String(cString: StringInterpolation("Hello".toCStr, "World".toCStr)))
+    while true {
+        var n: Int32 = 0
 
-    /* INFO: Server stuff starts from here on */
+        // ---- TCPRead ----
+        let readCode = buf.withUnsafeMutableBytes {
+            TCPRead(conn, $0.baseAddress, Int32($0.count), &n)
+        }
+        if readCode != TCP_OK || n <= 0 {
+            TCPConnClose(conn)
+            return
+        }
 
-    var retMsg: CString,  route: CString, message: CString
-    defer { free(route); free(message); free(retMsg); }
-
-    route = "/swift".toCStr
-    message = "Hello from Swift".toCStr
-
-    retMsg = HttpRegisterRoute(route, message)
-    print("\n\(String(cString: retMsg))", terminator: "")
-
-    route = "/apple".toCStr
-    message = "Fuck you Apple.".toCStr
-
-    retMsg = HttpRegisterRoute(route, message)
-    print(String(cString: retMsg))
-
-    let ret = HandleCServer()
-    return ret;
+        // ---- TCPWrite ----
+        var written: Int32 = 0
+        let writeCode = buf.withUnsafeMutableBytes {
+            TCPWrite(conn, $0.baseAddress, n, &written)
+        }
+        if writeCode != TCP_OK {
+            TCPConnClose(conn)
+            return
+        }
+    }
 }

@@ -1,297 +1,93 @@
 package main
 
-/*
-#include <stdint.h>
-
-// Function pointer types
-typedef void (*c_void_func_t)(void*);
-typedef void* (*c_ptr_func_t)(void*);
-
-typedef uint64_t TaskHandle;
-typedef uint64_t ChannelHandle;
-
-typedef struct {
-    ChannelHandle statsChannel;
-    int intervalMs;
-} MonitorConfig;
-
-// Helper to invoke C function pointers from Go
-static inline void invoke_void_func(c_void_func_t fn, void* arg) {
-    fn(arg);
-}
-
-static inline void* invoke_ptr_func(c_ptr_func_t fn, void *arg) {
-    return fn(arg);
-}
-*/
-import "C"
-
 import (
-	"fmt"
-	"net/http"
-	"sync"
-	"sync/atomic"
-	"time"
+	"libgolang/internal"
 	"unsafe"
 )
 
-//export Add
-func Add(x, y C.int) C.int {
-	return x + y
+//export TCPListen
+func TCPListen(addr *internal.CChar, out *internal.CUint64T) internal.CInt {
+	return internal.TCPListen(addr, out)
 }
 
-//export StringInterpolation
-func StringInterpolation(x, y *C.char) *C.char {
-	return C.CString(fmt.Sprintf("StringInterpolation(): %s, %s!", C.GoString(x), C.GoString(y)))
+//export TCPAccept
+func TCPAccept(listener internal.CUint64T, out *internal.CUint64T) internal.CInt {
+	return internal.TCPAccept(listener, out)
 }
 
-var (
-	httpRouter     = http.NewServeMux()
-	requestCounter uint64
-)
-
-// ============================================================================
-// ASYNC TASK SYSTEM - Unified approach for all async operations
-// ============================================================================
-
-type TaskHandle uint64
-
-type asyncTask struct {
-	completionSignal chan struct{}
-	result           unsafe.Pointer
-	hasResult        bool
+//export TCPRead
+func TCPRead(conn internal.CUint64T, buf internal.CPtr, bufLen internal.CInt, outRead *internal.CInt) internal.CInt {
+	return internal.TCPRead(conn, buf, bufLen, outRead)
 }
 
-var (
-	taskRegistry   sync.Map // map[TaskHandle]*asyncTask
-	nextTaskHandle uint64
-)
-
-func allocateTask(withResult bool) (TaskHandle, *asyncTask) {
-	handle := TaskHandle(atomic.AddUint64(&nextTaskHandle, 1))
-	task := &asyncTask{
-		completionSignal: make(chan struct{}),
-		hasResult:        withResult,
-	}
-	taskRegistry.Store(handle, task)
-	return handle, task
+//export TCPWrite
+func TCPWrite(conn internal.CUint64T, buf internal.CPtr, bufLen internal.CInt, outWritten *internal.CInt) internal.CInt {
+	return internal.TCPWrite(conn, buf, bufLen, outWritten)
 }
 
-func completeTask(handle TaskHandle, result unsafe.Pointer) {
-	if val, exists := taskRegistry.Load(handle); exists {
-		task := val.(*asyncTask)
-		if task.hasResult {
-			task.result = result
-		}
-		close(task.completionSignal)
-	}
+//export TCPConnClose
+func TCPConnClose(conn internal.CUint64T) internal.CInt {
+	return internal.TCPConnClose(conn)
 }
 
-func getTask(handle TaskHandle) *asyncTask {
-	if val, exists := taskRegistry.Load(handle); exists {
-		return val.(*asyncTask)
-	}
-	return nil
+//export TCPListenerClose
+func TCPListenerClose(listener internal.CUint64T) internal.CInt {
+	return internal.TCPListenerClose(listener)
 }
-
-func cleanupTask(handle TaskHandle) {
-	taskRegistry.Delete(handle)
-}
-
-// Launch a function that returns void* asynchronously
-//
-//export TaskLaunch
-func TaskLaunch(fn unsafe.Pointer, arg unsafe.Pointer) C.uint64_t {
-	handle, _ := allocateTask(true)
-
-	go func() {
-		result := C.invoke_ptr_func((C.c_ptr_func_t)(fn), arg)
-		completeTask(handle, result)
-	}()
-
-	return C.uint64_t(handle)
-}
-
-// Launch a function that returns nothing (fire-and-forget with tracking)
-//
-//export TaskLaunchVoid
-func TaskLaunchVoid(fn unsafe.Pointer, arg unsafe.Pointer) C.uint64_t {
-	handle, _ := allocateTask(false)
-
-	go func() {
-		C.invoke_void_func((C.c_void_func_t)(fn), arg)
-		completeTask(handle, nil)
-	}()
-
-	return C.uint64_t(handle)
-}
-
-// Non-blocking check if task is complete (0=done, -1=running, -2=invalid)
-//
-//export TaskPoll
-func TaskPoll(handle C.uint64_t, resultPtr *unsafe.Pointer) C.int {
-	task := getTask(TaskHandle(handle))
-	if task == nil {
-		return -2 // Invalid or already cleaned up
-	}
-
-	select {
-	case <-task.completionSignal:
-		if task.hasResult && resultPtr != nil {
-			*resultPtr = task.result
-		}
-		return 0
-	default:
-		return -1 // Still running
-	}
-}
-
-// Blocking wait for task completion
-//
-//export TaskAwait
-func TaskAwait(handle C.uint64_t, resultPtr *unsafe.Pointer) {
-	task := getTask(TaskHandle(handle))
-	if task == nil {
-		return // Already done or invalid
-	}
-
-	<-task.completionSignal
-
-	if task.hasResult && resultPtr != nil {
-		*resultPtr = task.result
-	}
-}
-
-// Blocking wait with timeout (0=success, -1=timeout, -2=invalid)
-//
-//export TaskAwaitTimeout
-func TaskAwaitTimeout(handle C.uint64_t, timeoutMs C.int64_t, resultPtr *unsafe.Pointer) C.int {
-	task := getTask(TaskHandle(handle))
-	if task == nil {
-		return -2
-	}
-
-	select {
-	case <-task.completionSignal:
-		if task.hasResult && resultPtr != nil {
-			*resultPtr = task.result
-		}
-		return 0
-	case <-time.After(time.Duration(timeoutMs) * time.Millisecond):
-		return -1
-	}
-}
-
-// Cleanup task resources (optional - useful for long-running programs)
-//
-//export TaskCleanup
-func TaskCleanup(handle C.uint64_t) {
-	cleanupTask(TaskHandle(handle))
-}
-
-// ============================================================================
-// CHANNEL SYSTEM - Go channels exposed to C
-// ============================================================================
-
-type ChannelHandle uint64
-
-var (
-	channelRegistry sync.Map // map[ChannelHandle]chan unsafe.Pointer
-	nextChanHandle  uint64
-)
 
 //export ChannelCreate
-func ChannelCreate(bufferSize C.int) C.uint64_t {
-	handle := ChannelHandle(atomic.AddUint64(&nextChanHandle, 1))
-	ch := make(chan unsafe.Pointer, int(bufferSize))
-	channelRegistry.Store(handle, ch)
-	return C.uint64_t(handle)
+func ChannelCreate(bufferSize internal.CInt) internal.CUint64T {
+	return internal.ChannelCreate(bufferSize)
 }
 
 //export ChannelSend
-func ChannelSend(handle C.uint64_t, value unsafe.Pointer) C.int {
-	if val, exists := channelRegistry.Load(ChannelHandle(handle)); exists {
-		ch := val.(chan unsafe.Pointer)
-		ch <- value
-		return 0
-	}
-	return -1 // Invalid channel
+func ChannelSend(handle internal.CUint64T, value unsafe.Pointer) internal.CInt {
+	return internal.ChannelSend(handle, value)
 }
 
 //export ChannelRecv
-func ChannelRecv(handle C.uint64_t) unsafe.Pointer {
-	if val, exists := channelRegistry.Load(ChannelHandle(handle)); exists {
-		ch := val.(chan unsafe.Pointer)
-		value, ok := <-ch
-		if !ok {
-			return nil // Channel closed
-		}
-		return value
-	}
-	return nil
+func ChannelRecv(handle internal.CUint64T) unsafe.Pointer {
+	return internal.ChannelRecv(handle)
 }
 
 //export ChannelTryRecv
-func ChannelTryRecv(handle C.uint64_t, valuePtr *unsafe.Pointer) C.int {
-	if val, exists := channelRegistry.Load(ChannelHandle(handle)); exists {
-		ch := val.(chan unsafe.Pointer)
-		select {
-		case value, ok := <-ch:
-			if !ok {
-				return -2 // Channel closed
-			}
-			if valuePtr != nil {
-				*valuePtr = value
-			}
-			return 0
-		default:
-			return -1 // Would block
-		}
-	}
-	return -3 // Invalid channel
+func ChannelTryRecv(handle internal.CUint64T, valuePtr *unsafe.Pointer) internal.CInt {
+	return internal.ChannelTryRecv(handle, valuePtr)
 }
 
 //export ChannelClose
-func ChannelClose(handle C.uint64_t) {
-	if val, exists := channelRegistry.Load(ChannelHandle(handle)); exists {
-		ch := val.(chan unsafe.Pointer)
-		channelRegistry.Delete(ChannelHandle(handle))
-		close(ch)
-	}
+func ChannelClose(handle internal.CUint64T) {
+	internal.ChannelClose(handle)
 }
 
-// ============================================================================
-// HTTP SERVER - Demo application
-// ============================================================================
-
-//export HttpRegisterRoute
-func HttpRegisterRoute(path, response *C.char) *C.char {
-	pathStr := C.GoString(path)
-	responseStr := C.GoString(response)
-
-	httpRouter.HandleFunc(pathStr, func(w http.ResponseWriter, r *http.Request) {
-		atomic.AddUint64(&requestCounter, 1)
-		w.Write([]byte(responseStr))
-	})
-
-	return C.CString(fmt.Sprintf("✓ Registered route: %s\n", pathStr))
+//export TaskLaunch
+func TaskLaunch(fn, arg unsafe.Pointer) internal.CUint64T {
+	return internal.TaskLaunch(fn, arg)
 }
 
-//export HttpGetRequestCount
-func HttpGetRequestCount() C.uint64_t {
-	return C.uint64_t(atomic.LoadUint64(&requestCounter))
+//export TaskLaunchVoid
+func TaskLaunchVoid(fn, arg unsafe.Pointer) internal.CUint64T {
+	return internal.TaskLaunchVoid(fn, arg)
 }
 
-//export HttpStartServer
-func HttpStartServer(addr *C.char) *C.char {
-	addrStr := C.GoString(addr)
-	fmt.Printf("🚀 HTTP server listening on %s\n", addrStr)
+//export TaskPoll
+func TaskPoll(handle internal.CUint64T, resultPtr *unsafe.Pointer) internal.CInt {
+	return internal.TaskPoll(handle, resultPtr)
+}
 
-	if err := http.ListenAndServe(addrStr, httpRouter); err != nil {
-		return C.CString(fmt.Sprintf("ERROR: %v", err))
-	}
+//export TaskAwait
+func TaskAwait(handle internal.CUint64T, resultPtr *unsafe.Pointer) {
+	internal.TaskPoll(handle, resultPtr)
+}
 
-	return C.CString("Unreachable: Server stopped")
+//export TaskAwaitTimeout
+func TaskAwaitTimeout(handle internal.CUint64T, timeoutMs internal.CInt64T, resultPtr *unsafe.Pointer) internal.CInt {
+	return internal.TaskAwaitTimeout(handle, timeoutMs, resultPtr)
+}
+
+//export TaskCleanup
+func TaskCleanup(handle internal.CUint64T) {
+	internal.TaskCleanup(handle)
 }
 
 func main() {}
