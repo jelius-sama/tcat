@@ -382,4 +382,23 @@ func ChannelClose(handle C.uint64_t) {
     }
 }
 
+//export AtomicCompareAndSwapInt32
+func AtomicCompareAndSwapInt32(addr *C.int32_t, old C.int32_t, new C.int32_t) C.int {
+    swapped := atomic.CompareAndSwapInt32((*int32)(addr), int32(old), int32(new))
+    if swapped {
+        return 1
+    }
+    return 0
+}
+
+//export AtomicLoadInt32
+func AtomicLoadInt32(addr *C.int32_t) C.int32_t {
+    return C.int32_t(atomic.LoadInt32((*int32)(addr)))
+}
+
+//export AtomicStoreInt32
+func AtomicStoreInt32(addr *C.int32_t, val C.int32_t) {
+    atomic.StoreInt32((*int32)(addr), int32(val))
+}
+
 func main() {}

@@ -123,6 +123,9 @@ extern int ChannelSend(uint64_t handle, void* value);
 extern void* ChannelRecv(uint64_t handle);
 extern int ChannelTryRecv(uint64_t handle, void** valuePtr);
 extern void ChannelClose(uint64_t handle);
+extern int AtomicCompareAndSwapInt32(int32_t* addr, int32_t old, int32_t new);
+extern int32_t AtomicLoadInt32(int32_t* addr);
+extern void AtomicStoreInt32(int32_t* addr, int32_t val);
 
 #ifdef __cplusplus
 }
