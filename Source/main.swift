@@ -98,10 +98,12 @@ func printHelp(_ program: String) {
     fputs(msg, stdout)
 }
 
-func parseArgs(_ args: [String]) -> (mode: String?, port: String?, ip: String?) {
-    var mode: String? = nil
-    var port: String? = nil
-    var ip: String? = nil
+func parseArgs(_ args: Array<String>) -> (
+    mode: Optional<String>, port: Optional<String>, ip: Optional<String>
+) {
+    var mode: Optional<String> = nil
+    var port: Optional<String> = nil
+    var ip: Optional<String> = nil
 
     var i = 1
     while i < args.count {

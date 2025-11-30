@@ -17,7 +17,7 @@ func sendToConn(_ conn: UInt64, _ text: String) {
     }
 }
 
-func broadcast(_ text: String, except: UInt64? = nil) {
+func broadcast(_ text: String, except: Optional<UInt64> = nil) {
     let bytes = Array(text.utf8)
     let ex = except ?? 0
 
@@ -34,7 +34,7 @@ func broadcast(_ text: String, except: UInt64? = nil) {
 // [8.....] : username as NUL-terminated UTF-8
 // ----------------------------------------------------------
 @_cdecl("ConnHandler")
-func ConnHandler(_ arg: CPtr?) {
+func ConnHandler(_ arg: Optional<CPtr>) {
     guard let raw = arg else { return }
     let ctx = UnsafeMutableRawPointer(raw)
 
@@ -68,12 +68,12 @@ func ConnHandler(_ arg: CPtr?) {
 
 // Accept loop handler - runs in its own goroutine
 @_cdecl("AcceptLoopHandler")
-func AcceptLoopHandler(_ arg: CPtr?) {
+func AcceptLoopHandler(_ arg: Optional<CPtr>) {
     guard let raw = arg else { return }
     let listener = UInt64(UInt(bitPattern: raw))
 
     let connHandlerFn = unsafeBitCast(
-        ConnHandler as @convention(c) (CPtr?) -> Void,
+        ConnHandler as @convention(c) (Optional<CPtr>) -> Void,
         to: CPtr.self
     )
 
@@ -126,7 +126,7 @@ func runServer(ip: String, port: String) -> Int32 {
 
     // Launch accept loop in a goroutine
     let acceptLoopFn = unsafeBitCast(
-        AcceptLoopHandler as @convention(c) (CPtr?) -> Void,
+        AcceptLoopHandler as @convention(c) (Optional<CPtr>) -> Void,
         to: CPtr.self
     )
     let listenerArg = CPtr(bitPattern: UInt(listener))

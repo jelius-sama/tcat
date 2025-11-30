@@ -56,11 +56,11 @@ class SpinLock {
 class TerminalState {
     var rows: Int = 24
     var cols: Int = 80
-    var messages: [String] = []
+    var messages: Array<String> = []
     var username: String = ""
     var inputBuffer: String = ""
     var lock = SpinLock()
-    var userColorMap: [String: String] = [:]
+    var userColorMap: Dictionary<String, String> = [:]
     var cursorVisible: Bool = true
 
     init() {
@@ -197,7 +197,7 @@ var terminalState: TerminalState!
 
 // Cursor blink loop
 @_cdecl("CursorBlinkLoop")
-func CursorBlinkLoop(_ arg: CPtr?) {
+func CursorBlinkLoop(_ arg: Optional<CPtr>) {
     while true {
         usleep(500_000)  // 500ms
         if terminalState != nil {
@@ -247,7 +247,7 @@ func setupTerminal() {
 
 // Read loop for the client
 @_cdecl("ClientReadLoop")
-func ClientReadLoop(_ arg: CPtr?) {
+func ClientReadLoop(_ arg: Optional<CPtr>) {
     let conn = UInt64(UInt(bitPattern: arg))
     var buf = [UInt8](repeating: 0, count: 1024)
 
@@ -294,7 +294,7 @@ func runClient(ip: String, port: String) -> Int32 {
     terminalState.render()
 
     let fn = unsafeBitCast(
-        ClientReadLoop as @convention(c) (CPtr?) -> Void,
+        ClientReadLoop as @convention(c) (Optional<CPtr>) -> Void,
         to: CPtr.self
     )
     let arg = CPtr(bitPattern: UInt(conn))
