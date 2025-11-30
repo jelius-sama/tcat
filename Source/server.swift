@@ -66,16 +66,13 @@ func ConnHandler(_ arg: CPtr?) {
     }
 }
 
-func runServer(port: String) -> Int32 {
-    var listener: UInt64 = 0
-    guard TCPListen((":" + port).toCStr, &listener) == TCP_OK else {
-        fputs("Failed to listen on :\(port)\n", stderr)
-        return 1
-    }
+// Accept loop handler - runs in its own goroutine
+@_cdecl("AcceptLoopHandler")
+func AcceptLoopHandler(_ arg: CPtr?) {
+    guard let raw = arg else { return }
+    let listener = UInt64(UInt(bitPattern: raw))
 
-    fputs("Server listening on :\(port)\n", stdout)
-
-    let fn = unsafeBitCast(
+    let connHandlerFn = unsafeBitCast(
         ConnHandler as @convention(c) (CPtr?) -> Void,
         to: CPtr.self
     )
@@ -102,7 +99,7 @@ func runServer(port: String) -> Int32 {
         let nameBytes = Array(username.utf8)
         let total = 8 + nameBytes.count + 1
 
-        let ctx = UnsafeMutableRawPointer(malloc(total))!  // force unwrap once
+        let ctx = UnsafeMutableRawPointer(malloc(total))!
 
         ctx.storeBytes(of: conn, as: UInt64.self)
 
@@ -113,6 +110,31 @@ func runServer(port: String) -> Int32 {
         namePtr[nameBytes.count] = 0
 
         let arg = CPtr(ctx)
-        _ = TaskLaunchVoid(fn, arg)
+        _ = TaskLaunchVoid(connHandlerFn, arg)
+    }
+}
+
+func runServer(port: String) -> Int32 {
+    var listener: UInt64 = 0
+    guard TCPListen((":" + port).toCStr, &listener) == TCP_OK else {
+        fputs("Failed to listen on :\(port)\n", stderr)
+        return 1
+    }
+
+    fputs("Server listening on :\(port)\n", stdout)
+
+    // Launch accept loop in a goroutine
+    let acceptLoopFn = unsafeBitCast(
+        AcceptLoopHandler as @convention(c) (CPtr?) -> Void,
+        to: CPtr.self
+    )
+    let listenerArg = CPtr(bitPattern: UInt(listener))
+    let acceptTaskHandle = TaskLaunchVoid(acceptLoopFn, listenerArg)
+
+    fputs("Accept loop running in goroutine (handle: \(acceptTaskHandle))\n", stdout)
+
+    // Keep main thread alive - server runs indefinitely
+    while true {
+        sleep(1)
     }
 }
