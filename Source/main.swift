@@ -21,11 +21,11 @@ func printHelp(_ program: String) {
         \(cyan)\(bold)
         ╔════════════════════════════════════════════════════════════════╗
         ║                                                                ║
-        ║   \(yellow)████████\(cyan) ██████  █████  ████████                           ║
-        ║      \(yellow)██\(cyan)   ██      ██   ██    ██                              ║
-        ║      \(yellow)██\(cyan)   ██      ███████    ██     \(dim)Terminal Chat\(reset)\(cyan)\(bold)       ║
-        ║      \(yellow)██\(cyan)   ██      ██   ██    ██                              ║
-        ║      \(yellow)██\(cyan)    ██████ ██   ██    ██                              ║
+        ║   \(yellow)████████\(cyan) ██████  █████  ████████                             ║
+        ║      \(yellow)██\(cyan)   ██      ██   ██    ██                                ║
+        ║      \(yellow)██\(cyan)   ██      ███████    ██     \(dim)Terminal Chat\(reset)\(cyan)\(bold)              ║
+        ║      \(yellow)██\(cyan)   ██      ██   ██    ██                                ║
+        ║      \(yellow)██\(cyan)    ██████ ██   ██    ██                                ║
         ║                                                                ║
         ╚════════════════════════════════════════════════════════════════╝
         \(reset)
