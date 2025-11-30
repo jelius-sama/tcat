@@ -283,14 +283,14 @@ func runClient(ip: String, port: String) -> Int32 {
     var conn: UInt64 = 0
     let addr = "\(ip):\(port)"
     guard TCPConnect(addr.toCStr, &conn) == TCP_OK else {
-        fputs("Client: failed to connect to :\(addr)\n", stderr)
+        fputs("Client: failed to connect to \(addr)\n", stderr)
         return 1
     }
 
     terminalState = TerminalState()
     setupTerminal()
 
-    terminalState.addMessage(">>> Connecting to :\(addr)...")
+    terminalState.addMessage(">>> Connecting to \(addr)...")
     terminalState.render()
 
     let fn = unsafeBitCast(
