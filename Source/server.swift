@@ -114,14 +114,15 @@ func AcceptLoopHandler(_ arg: CPtr?) {
     }
 }
 
-func runServer(port: String) -> Int32 {
+func runServer(ip: String, port: String) -> Int32 {
     var listener: UInt64 = 0
-    guard TCPListen((":" + port).toCStr, &listener) == TCP_OK else {
-        fputs("Failed to listen on :\(port)\n", stderr)
+    let addr = "\(ip):\(port)"
+    guard TCPListen(addr.toCStr, &listener) == TCP_OK else {
+        fputs("Failed to listen on :\(addr)\n", stderr)
         return 1
     }
 
-    fputs("Server listening on :\(port)\n", stdout)
+    fputs("Server listening on :\(addr)\n", stdout)
 
     // Launch accept loop in a goroutine
     let acceptLoopFn = unsafeBitCast(
