@@ -129,9 +129,7 @@ func runServer(port: String) -> Int32 {
         to: CPtr.self
     )
     let listenerArg = CPtr(bitPattern: UInt(listener))
-    let acceptTaskHandle = TaskLaunchVoid(acceptLoopFn, listenerArg)
-
-    fputs("Accept loop running in goroutine (handle: \(acceptTaskHandle))\n", stdout)
+    _ = TaskLaunchVoid(acceptLoopFn, listenerArg)
 
     // Keep main thread alive - server runs indefinitely
     while true {
