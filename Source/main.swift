@@ -1,29 +1,29 @@
-#if canImport(Glibc)
-import Glibc
-#elseif canImport(Musl)
-import Musl
-#endif
-
 import Foundation
 import Golang
 
+#if canImport(Glibc)
+    import Glibc
+#elseif canImport(Musl)
+    import Musl
+#endif
+
 func printHelp(_ program: String) {
     let msg =
-"""
-usage:
-  \(program) [mode] [port]
+        """
+        usage:
+          \(program) [mode] [port]
 
-modes:
-  -h | --h | -help | --help | help      print this help
-  -s | --s | -server | --server         run server
-  -c | --c | -client | --client         run client
+        modes:
+          -h | --h | -help | --help | help      print this help
+          -s | --s | -server | --server         run server
+          -c | --c | -client | --client         run client
 
-optional:
-  -p <port>  or  --p <port> or -port <port> or --port <port>
-examples:
-  \(program) -s -p 9000
-  \(program) -c -p 9000\n
-"""
+        optional:
+          -p <port>  or  --p <port> or -port <port> or --port <port>
+        examples:
+          \(program) -s -p 9000
+          \(program) -c -p 9000\n
+        """
     fputs(msg, stdout)
 }
 
@@ -60,9 +60,13 @@ func main(_ argc: Int32, _ argv: CStringPtr) -> Int32 {
     let port = portOverride ?? "6969"
 
     switch mode {
-    case "help", .none:   printHelp(args[0]); return 0
+    case "help", .none:
+        printHelp(args[0])
+        return 0
     case "client": return runClient(port: port)
     case "server": return runServer(port: port)
-    default:       printHelp(args[0]); return 1
+    default:
+        printHelp(args[0])
+        return 1
     }
 }

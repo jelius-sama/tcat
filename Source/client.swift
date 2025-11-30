@@ -1,17 +1,17 @@
-#if canImport(Glibc)
-import Glibc
-#elseif canImport(Musl)
-import Musl
-#endif
-
 import Foundation
 import Golang
 
+#if canImport(Glibc)
+    import Glibc
+#elseif canImport(Musl)
+    import Musl
+#endif
+
 // read loop for the client — runs in a Go task
 @_cdecl("ClientReadLoop")
-func ClientReadLoop(_ arg: Optional<CPtr>) {
+func ClientReadLoop(_ arg: CPtr?) {
     let conn = UInt64(UInt(bitPattern: arg))
-    var buf = Array<UInt8>(repeating: 0, count: 1024)
+    var buf = [UInt8](repeating: 0, count: 1024)
 
     while true {
         var n: Int32 = 0
@@ -46,7 +46,7 @@ func runClient(port: String) -> Int32 {
     fputs("Connected to :\(port)\n", stdout)
 
     let fn = unsafeBitCast(
-        ClientReadLoop as @convention(c) (Optional<CPtr>) -> Void,
+        ClientReadLoop as @convention(c) (CPtr?) -> Void,
         to: CPtr.self
     )
     let arg = CPtr(bitPattern: UInt(conn))

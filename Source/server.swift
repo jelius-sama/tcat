@@ -1,11 +1,11 @@
-#if canImport(Glibc)
-import Glibc
-#elseif canImport(Musl)
-import Musl
-#endif
-
 import Foundation
 import Golang
+
+#if canImport(Glibc)
+    import Glibc
+#elseif canImport(Musl)
+    import Musl
+#endif
 
 func sendToConn(_ conn: UInt64, _ text: String) {
     let bytes = Array(text.utf8)
@@ -34,7 +34,7 @@ func broadcast(_ text: String, except: UInt64? = nil) {
 // [8.....] : username as NUL-terminated UTF-8
 // ----------------------------------------------------------
 @_cdecl("ConnHandler")
-func ConnHandler(_ arg: Optional<CPtr>) {
+func ConnHandler(_ arg: CPtr?) {
     guard let raw = arg else { return }
     let ctx = UnsafeMutableRawPointer(raw)
 
@@ -42,7 +42,7 @@ func ConnHandler(_ arg: Optional<CPtr>) {
     let namePtr = ctx.advanced(by: 8).assumingMemoryBound(to: CChar.self)
     let username = String(cString: namePtr)
 
-    var buf = Array<UInt8>(repeating: 0, count: 1024)
+    var buf = [UInt8](repeating: 0, count: 1024)
 
     while true {
         var n: Int32 = 0
@@ -76,7 +76,7 @@ func runServer(port: String) -> Int32 {
     fputs("Server listening on :\(port)\n", stdout)
 
     let fn = unsafeBitCast(
-        ConnHandler as @convention(c) (Optional<CPtr>) -> Void,
+        ConnHandler as @convention(c) (CPtr?) -> Void,
         to: CPtr.self
     )
 
@@ -102,7 +102,7 @@ func runServer(port: String) -> Int32 {
         let nameBytes = Array(username.utf8)
         let total = 8 + nameBytes.count + 1
 
-        let ctx = UnsafeMutableRawPointer(malloc(total))!       // force unwrap once
+        let ctx = UnsafeMutableRawPointer(malloc(total))!  // force unwrap once
 
         ctx.storeBytes(of: conn, as: UInt64.self)
 

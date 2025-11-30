@@ -2,6 +2,7 @@
 
 /* package libgolang */
 
+
 #line 1 "cgo-builtin-export-prolog"
 
 #include <stddef.h>
@@ -10,23 +11,21 @@
 #define GO_CGO_EXPORT_PROLOGUE_H
 
 #ifndef GO_CGO_GOSTRING_TYPEDEF
-typedef struct {
-    const char *p;
-    ptrdiff_t n;
-} _GoString_;
+typedef struct { const char *p; ptrdiff_t n; } _GoString_;
 #endif
 
 #endif
 
 /* Start of preamble from import "C" comments.  */
 
+
 #line 3 "golang.go"
 
 #include <stdint.h>
 
 // Function pointer types
-typedef void (*c_void_func_t)(void *);
-typedef void *(*c_ptr_func_t)(void *);
+typedef void (*c_void_func_t)(void*);
+typedef void* (*c_ptr_func_t)(void*);
 
 typedef uint64_t TaskHandle;
 typedef uint64_t ChannelHandle;
@@ -37,15 +36,19 @@ typedef struct {
 } MonitorConfig;
 
 // Helper to invoke C function pointers from Go
-static inline void invoke_void_func(c_void_func_t fn, void *arg) { fn(arg); }
+static inline void invoke_void_func(c_void_func_t fn, void* arg) {
+    fn(arg);
+}
 
-static inline void *invoke_ptr_func(c_ptr_func_t fn, void *arg) {
+static inline void* invoke_ptr_func(c_ptr_func_t fn, void *arg) {
     return fn(arg);
 }
 
 #line 1 "cgo-generated-wrapper"
 
+
 /* End of preamble from import "C" comments.  */
+
 
 /* Start of boilerplate cgo prologue.  */
 #line 1 "cgo-gcc-export-header-prolog"
@@ -79,23 +82,15 @@ typedef double _Complex GoComplex128;
   static assertion to make sure the file is being used on architecture
   at least with matching size of GoInt.
 */
-typedef char
-    _check_for_64_bit_pointer_matching_GoInt[sizeof(void *) == 64 / 8 ? 1 : -1];
+typedef char _check_for_64_bit_pointer_matching_GoInt[sizeof(void*)==64/8 ? 1:-1];
 
 #ifndef GO_CGO_GOSTRING_TYPEDEF
 typedef _GoString_ GoString;
 #endif
 typedef void *GoMap;
 typedef void *GoChan;
-typedef struct {
-    void *t;
-    void *v;
-} GoInterface;
-typedef struct {
-    void *data;
-    GoInt len;
-    GoInt cap;
-} GoSlice;
+typedef struct { void *t; void *v; } GoInterface;
+typedef struct { void *data; GoInt len; GoInt cap; } GoSlice;
 
 #endif
 
@@ -105,29 +100,28 @@ typedef struct {
 extern "C" {
 #endif
 
-extern int TCPListen(char *addr, uint64_t *out);
-extern int TCPConnect(char *addr, uint64_t *out);
-extern int TCPAccept(uint64_t listener, uint64_t *out);
-extern int TCPRead(uint64_t conn, void *buf, int bufLen, int *outRead);
-extern int TCPWrite(uint64_t conn, void *buf, int bufLen, int *outWritten);
+extern int TCPListen(char* addr, uint64_t* out);
+extern int TCPConnect(char* addr, uint64_t* out);
+extern int TCPAccept(uint64_t listener, uint64_t* out);
+extern int TCPRead(uint64_t conn, void* buf, int bufLen, int* outRead);
+extern int TCPWrite(uint64_t conn, void* buf, int bufLen, int* outWritten);
 
 // broadcast same bytes to all connections except 'except'
 // if except == 0, no exception
 //
-extern int TCPBroadcast(void *buf, int bufLen, uint64_t except);
+extern int TCPBroadcast(void* buf, int bufLen, uint64_t except);
 extern int TCPConnClose(uint64_t conn);
 extern int TCPListenerClose(uint64_t listener);
-extern uint64_t TaskLaunch(void *fn, void *arg);
-extern uint64_t TaskLaunchVoid(void *fn, void *arg);
-extern int TaskPoll(uint64_t handle, void **resultPtr);
-extern void TaskAwait(uint64_t handle, void **resultPtr);
-extern int TaskAwaitTimeout(uint64_t handle, int64_t timeoutMs,
-                            void **resultPtr);
+extern uint64_t TaskLaunch(void* fn, void* arg);
+extern uint64_t TaskLaunchVoid(void* fn, void* arg);
+extern int TaskPoll(uint64_t handle, void** resultPtr);
+extern void TaskAwait(uint64_t handle, void** resultPtr);
+extern int TaskAwaitTimeout(uint64_t handle, int64_t timeoutMs, void** resultPtr);
 extern void TaskCleanup(uint64_t handle);
 extern uint64_t ChannelCreate(int bufferSize);
-extern int ChannelSend(uint64_t handle, void *value);
-extern void *ChannelRecv(uint64_t handle);
-extern int ChannelTryRecv(uint64_t handle, void **valuePtr);
+extern int ChannelSend(uint64_t handle, void* value);
+extern void* ChannelRecv(uint64_t handle);
+extern int ChannelTryRecv(uint64_t handle, void** valuePtr);
 extern void ChannelClose(uint64_t handle);
 
 #ifdef __cplusplus
