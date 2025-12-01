@@ -133,8 +133,16 @@ func parseArgs(_ args: Array<String>) -> (
 }
 
 @_cdecl("main")
-func main(_ argc: Int32, _ argv: CStringPtr) -> Int32 {
-    let args = CommandLine.arguments
+func main(_ argc: Int32, _ argv: OptionalCStringPtr) -> Int32 {
+    var args: Array<String> = []
+    args.reserveCapacity(Int(argc))
+
+    for i in 0..<Int(argc) {
+        if let cStr = argv[i] {
+            args.append(String(cString: cStr))
+        }
+    }
+
     let (mode, portOverride, ipOverride) = parseArgs(args)
     let port = portOverride ?? "6969"
 
